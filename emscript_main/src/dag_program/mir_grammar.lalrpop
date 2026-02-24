@@ -1,0 +1,117 @@
+use std::str::FromStr;
+use super::*;
+
+grammar;
+
+match {
+    r"\s*" => { }, // The default whitespace skipping is disabled if an `ignore pattern` is specified
+    r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
+    r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/" => { },  // Skip `/* comments */`
+} else {
+    "true" => TRUE,
+    "false" => FALSE,
+} else {
+    // r"[0-9]+" => UINT,
+    r"[+-]?[0-9]+" => SINT,
+    r"[+-]?[0-9]+\.[0-9]*" => FLOAT,
+    _
+}
+
+
+CommaList<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <last:T?> => match last {
+        None => v,
+        Some(last) => {
+            v.push(last);
+            v
+        }
+    }
+};
+
+Identifier: String = {
+    <s:r"[[:alpha:]][[:alnum:]_]*"> => s.to_string(),
+};
+
+TypePath: ParsedTypePath = {
+    <ident:Identifier> => ParsedTypePath::TypeName(ident),
+    "&" <inner:TypePath> => ParsedTypePath::Ref(Box::new(inner)),
+    "gc" "<" <inner:TypePath> ">" => ParsedTypePath::GcRef(Box::new(inner)),
+};
+
+pub DecLocal: ParsedFunctionLine = {
+    "let" <name:Identifier> ":" <ty:TypePath> ";" => ParsedFunctionLine::DecLocal { name, ty },
+};
+
+LiteralUInt: u64 = {
+    SINT => u64::from_str(<>).unwrap(),
+};
+
+LiteralSInt: i64 = {
+    SINT => i64::from_str(<>).unwrap(),
+};
+
+LiteralFloat: f64 = {
+    FLOAT => f64::from_str(<>).unwrap(),
+};
+
+LiteralBool: bool = {
+    TRUE => true,
+    FALSE => false,
+};
+
+pub Place: ParsedPlace = {
+    "*" <mut place:PlaceFactor> => { place.projections.push(ParsedProjection::Deref); place },
+    PlaceFactor,
+};
+
+PlaceFactor: ParsedPlace = {
+    <mut place:PlaceFactor> "." <field:LiteralUInt> => { place.projections.push(ParsedProjection::Field(field as usize)); place },
+    PlaceTerm,
+};
+
+PlaceTerm: ParsedPlace = {
+    <root:Identifier> => ParsedPlace { root, projections: vec![] },
+    "(" <Place> ")",
+};
+
+Operand: ParsedOperand = {
+    Place => ParsedOperand::Place(<>),
+    LiteralSInt => ParsedOperand::ConstI32(<> as i32),
+    LiteralFloat => ParsedOperand::ConstF32(<> as f32),
+    LiteralBool => ParsedOperand::ConstBool(<>),
+};
+
+Value: ParsedValue = {
+    "alloc" => ParsedValue::Alloc,
+    Operand => ParsedValue::Read(<>),
+    "&" <Operand> => ParsedValue::Ref(<>),
+    <op:Identifier> <lhs:Operand> "," <rhs:Operand> => ParsedValue::BinOp(op, lhs, rhs),
+};
+
+BlockLine: ParsedBlockLine = {
+    <lvalue:Place> "=" <rvalue:Value> ";" => ParsedBlockLine { lvalue, rvalue },
+};
+
+pub DefBlock: ParsedFunctionLine = {
+    <name:Identifier> ":" "{" <lines:(<BlockLine>)*> <term_ins:Identifier> <term_args:CommaList<Identifier>> "}" => ParsedFunctionLine::Block { name, lines, term_ins, term_args },
+};
+
+FunctionLine: ParsedFunctionLine = {
+    DefBlock,
+    DecLocal,
+};
+
+pub DefItem: ParsedItem = {
+    "struct" <name:Identifier> "{"
+        <fields:CommaList<TypePath>>
+    "}"
+        => ParsedItem::Struct { name, fields },
+    "fn" <name:Identifier> "(" <args:CommaList<Identifier>>  ")" <ret_ty:("->" <TypePath>)?> "{"
+        <lines:FunctionLine*>
+    "}"
+        => ParsedItem::Function { name, arg_locals: args, lines, ret_ty },
+};
+
+pub Document: Vec<ParsedItem> = {
+    DefItem*,
+}

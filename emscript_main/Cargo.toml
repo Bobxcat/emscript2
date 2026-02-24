@@ -1,0 +1,15 @@
+[package]
+name = "emscript_main"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cranelift = { version = "0.128.0" }
+cranelift-jit = "0.128.1"
+cranelift-module = "0.128.1"
+itertools = "0.14.0"
+slotmap = "1.1.1"
+lalrpop-util = { version = "0.22.2", features = ["lexer", "unicode"] }
+
+[build-dependencies]
+lalrpop = "0.22.2"

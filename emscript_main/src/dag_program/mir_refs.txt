@@ -1,0 +1,26 @@
+fn return_ref(n) -> gc<i32> {
+    let n: i32;
+    let ret: gc<i32>;
+    bb0: {
+        ret = alloc;
+        *ret = n;
+        return ret
+    }
+}
+
+struct ReturnedStruct {
+    i32,
+    gc<i32>,
+}
+
+fn return_ref_struct(n) -> gc<ReturnedStruct> {
+    let n: i32;
+    let ret: gc<ReturnedStruct>;
+    bb0: {
+        ret = alloc;
+        (*ret).0 = n;
+        (*ret).1 = alloc;
+        *(*ret).1 = n;
+        return ret
+    }
+}

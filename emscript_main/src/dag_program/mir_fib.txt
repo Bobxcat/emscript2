@@ -1,0 +1,58 @@
+fn fibonacci(n) -> i32 {
+    let n: i32;
+    let tmp: i32;
+    let cond: bool;
+    bb0: {
+        cond = le n, 1;
+        brif cond, base_case, bb1
+    }
+    base_case: {
+        return n
+    }
+    bb1: {
+        n = add n, -1;
+        call fibonacci, tmp, bb2, n
+    }
+    bb2: {
+        n = add n, -1;
+        call fibonacci, n, bb3, n
+    }
+    bb3: {
+        n = add n, tmp;
+        return n
+    }
+}
+
+fn fibonacci_iter(n) -> i32 {
+    let n: i32;
+
+    let a: i32;
+    let b: i32;
+    let tmp: i32;
+
+    let i: i32;
+    let loop_cond: bool;
+
+    entry: {
+        a = 0;
+        b = 1;
+        i = 0;
+        br loop_head
+    }
+    loop_head: {
+        loop_cond = lt i, n;
+        brif loop_cond, loop_body, end
+    }
+    loop_body: {
+        i = add i, 1;
+
+        tmp = b;
+        b = add a, b;
+        a = tmp;
+        
+        br loop_head
+    }
+    end: {
+        return a
+    }
+}
